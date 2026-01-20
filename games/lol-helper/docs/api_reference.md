@@ -329,38 +329,40 @@ def get_dataloader(data_path, batch_size=32, shuffle=True, num_workers=4):
 
 ## 7. 策略模型 (model.py)
 
+### 个人用户优化版（小模型）
+
 ```python
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class PolicyModel(nn.Module):
-    """策略网络模型"""
+class LoLAIModel(nn.Module):
+    """英雄联盟AI策略网络（小模型 - 针对RTX5060 8GB优化）"""
 
-    def __init__(self, num_actions, state_dim=512, hidden_dim=256):
+    def __init__(self, num_actions=32):
         """
         初始化模型
 
         Args:
-            num_actions: 动作数量
-            state_dim: 状态维度
-            hidden_dim: 隐藏层维度
+            num_actions: 动作数量（32种：8方向移动 + 普攻 + 技能等）
         """
         super().__init__()
 
-        # CNN 用于视觉特征提取
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2)
-        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
-        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1)
+        # CNN特征提取（小型）
+        self.conv1 = nn.Conv2d(12, 32, kernel_size=8, stride=4)  # 4帧RGB堆叠 = 12通道
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1)
 
-        # LSTM 用于序列建模
-        self.lstm = nn.LSTM(state_dim, hidden_dim, num_layers=2, batch_first=True)
+        # LSTM序列处理
+        self.lstm_hidden_size = 128
+        self.lstm = nn.LSTM(128 * 7 * 7, self.lstm_hidden_size, batch_first=True)
 
-        # 全连接层
-        self.fc1 = nn.Linear(hidden_dim + 512, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, num_actions)
+        # 策略头（动作分类）
+        self.policy_head = nn.Sequential(
+            nn.Linear(self.lstm_hidden_size, 64),
+            nn.ReLU(),
+            nn.Linear(64, num_actions)
+        )
 
         # Dropout
         self.dropout = nn.Dropout(0.3)
@@ -1526,5 +1528,6 @@ if __name__ == '__main__':
 
 ---
 
-**文档版本**: 1.0
-**最后更新**: 2026-01-19
+**文档版本**: 1.1
+**最后更新**: 2026-01-20
+**更新内容**：添加个人用户小模型架构示例
