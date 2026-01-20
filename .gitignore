@@ -205,3 +205,24 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# League of Legends AI Project
+# Data files (replays and processed data)
+backend/data/dataset/raw/*.rofl
+backend/data/dataset/processed/*.h5
+backend/data/dataset/processed/*.hdf5
+
+# Trained models and checkpoints
+backend/ai/models/*.pth
+backend/ai/models/*.pt
+backend/ai/models/*.pkl
+backend/ai/models/checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Screenshots and debug images
+*.png
+*.jpg
+screenshots/
