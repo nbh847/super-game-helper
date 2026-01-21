@@ -57,8 +57,15 @@
 - CUDA 11.8+（GPU 加速，可选）
 - 推荐配置：RTX5060 8GB 显卡 + 16GB 内存
 - 个人用户配置：适合个人开发使用
+- **训练环境**：Windows 10/11（pydirectinput 需要Windows）
 
-### 个人用户简化方案
+### 平台说明
+
+- **开发环境**：macOS（编写代码）
+- **训练环境**：Windows 10/11（运行训练任务）
+- **跨平台兼容**：代码已考虑跨平台兼容性
+
+**Windows 用户**请参考 [Windows 环境配置指南](WINDOWS_SETUP.md)
 
 **适用场景**：
 - 只玩大乱斗模式（ARAM）
@@ -94,6 +101,7 @@ pip install -r requirements.txt
 - [架构设计](architecture.md) - 目录结构和模块说明
 - [防检测策略](anti_detection.md) - 防检测详细策略
 - [模块API参考](api_reference.md) - 代码接口和实现细节
+- [参考项目技术借鉴](project_references.md) - 开源项目技术调研和借鉴方案
 
 ## 渐进式版本
 
@@ -134,22 +142,23 @@ pip install -r requirements.txt
 lol-replay-parser
 
 # 深度学习
-torch
-torchvision
+torch==2.2.2
+torchvision==0.17.2
 stable-baselines3
 gymnasium
 
 # 图像处理
-opencv-python
+opencv-python>=4.8.0,<4.9.0  # 限制版本以兼容numpy 1.x
 paddleocr
 ultralytics
 
-# 操作模拟
-pyautogui
-pynput
+# 操作模拟（跨平台）
+pyautogui>=0.9.54  # 跨平台支持
+pynput>=1.7.6       # 跨平台支持
+pydirectinput>=1.0.4  # 仅Windows支持（游戏专用）
 
 # 数据处理
-numpy
+numpy>=1.24.0,<2  # 限制版本以兼容torch
 pandas
 h5py
 
@@ -158,6 +167,15 @@ pillow
 pyyaml
 tqdm
 ```
+
+### 跨平台兼容性
+
+- **开发环境**：macOS
+- **训练环境**：Windows 10/11
+- **输入模拟**：
+  - Windows：pydirectinput（游戏专用，低延迟）
+  - macOS/Linux：pyautogui（回退方案）
+- **代码已处理**：自动检测平台并选择合适的库
 
 ## 数据现状
 

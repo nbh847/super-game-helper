@@ -99,7 +99,11 @@ class LoLDataset(Dataset):
         
         # 转换为tensor
         state_tensor = torch.FloatTensor(state)
-        action_tensor = torch.LongTensor([action]) if isinstance(action, (int, np.integer)) else torch.LongTensor(action)
+        
+        # 确保action是标量
+        if isinstance(action, np.ndarray):
+            action = action.item()  # 如果是数组，提取标量值
+        action_tensor = torch.LongTensor([action])
         
         return state_tensor, action_tensor
     
@@ -264,7 +268,7 @@ def create_sample_dataset(output_path: str, num_samples: int = 1000):
     os.makedirs(output_path, exist_ok=True)
     
     # 状态维度和动作数量
-    state_dim = 128
+    state_dim = 12 * 180 * 320  # CNN输入: (channels=12, height=180, width=320)
     num_actions = 32
     
     # 生成随机数据

@@ -25,13 +25,14 @@ def custom_collate(batch):
     states = torch.stack(states, dim=0)
     actions = torch.stack(actions, dim=0)
     
-    # actions是一维的（每个样本一个动作），需要转换为序列
-    # 添加序列维度：假设每个样本只有一个动作，扩展为长度为1的序列
-    # states: (batch, channels, height, width)
-    # actions: (batch,)
+    # 压缩action维度
+    actions = actions.squeeze(dim=1)  # (batch,)
+    
+    # 重塑状态：(batch, 12*180*320) -> (batch, 12, 180, 320)
+    states = states.reshape(states.size(0), 12, 180, 320)
     
     # 为状态添加序列维度
-    states = states.unsqueeze(1)  # (batch, 1, channels, height, width)
+    states = states.unsqueeze(1)  # (batch, 1, 12, 180, 320)
     
     # 为actions添加序列维度
     actions = actions.unsqueeze(1)  # (batch, 1)
@@ -162,8 +163,8 @@ def main(args=None):
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=0,
-             drop_last=True,
-             collate_fn=custom_collate
+            drop_last=True,
+            collate_fn=custom_collate
         )
         val_loader = torch.utils.data.DataLoader(
             val_dataset,
@@ -173,14 +174,6 @@ def main(args=None):
             drop_last=True,
             collate_fn=custom_collate
         )
-         val_loader = torch.utils.data.DataLoader(
-             val_dataset,
-             batch_size=args.batch_size,
-             shuffle=False,
-             num_workers=0,
-             drop_last=True,
-             collate_fn=custom_collate
-         )
     else:
         print(f"[错误] 数据文件不存在: {h5_file}")
         print(f"[提示] 使用 --create_sample 创建示例数据集")

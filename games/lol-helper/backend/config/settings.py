@@ -75,6 +75,8 @@ class PathConfig:
     dataset_processed: str = "backend/data/dataset/processed"
     logs_dir: str = "logs"
     checkpoint_dir: str = "backend/ai/models/checkpoints"
+    capture_dir: str = "logs/captures"
+    output_dir: str = "logs/outputs"
 
 
 @dataclass
