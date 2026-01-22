@@ -210,6 +210,18 @@ class DQNAgent:
         """
         states, actions, rewards, next_states, dones = batch
         
+        # 转换为tensor（如果需要）
+        if not isinstance(states, torch.Tensor):
+            states = torch.FloatTensor(states)
+        if not isinstance(actions, torch.Tensor):
+            actions = torch.LongTensor(actions)
+        if not isinstance(rewards, torch.Tensor):
+            rewards = torch.FloatTensor(rewards)
+        if not isinstance(next_states, torch.Tensor):
+            next_states = torch.FloatTensor(next_states)
+        if not isinstance(dones, torch.Tensor):
+            dones = torch.FloatTensor(dones)
+        
         # 转换到设备
         states = states.to(self.device)
         actions = actions.to(self.device)
