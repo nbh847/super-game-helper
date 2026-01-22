@@ -724,23 +724,57 @@ python backend\test_infrastructure.py
 详细的MOBA游戏AI研究资料已整理到独立文档：
 
 📄 **[docs/research/research_references.md](research/research_references.md)**
-
-**包含内容**：
-- ✅ 成功案例分析（OpenAI Five、TLoL、Grok AI）
-- ✅ 技术方向验证（行为克隆、强化学习、人类行为模拟）
-- ✅ 关键发现与差距分析
-- ✅ 后续改进方向（V1→V2→V3路线图）
-- ✅ 可借鉴的具体技术（PPO、Catmull-Rom、分布式训练）
-- ✅ 数据收集计划
-- ✅ 性能目标设定
-- ✅ 风险评估与控制
-- ✅ 参考资源汇总
+        - ✅ 成功案例分析（OpenAI Five、TLoL、Grok AI）
+        - ✅ 技术方向验证（行为克隆、强化学习、人类行为模拟）
+        - ✅ 关键发现与差距分析
+        - ✅ 后续改进方向（V1→V2→V3路线图）
+        - ✅ 可借鉴的具体技术（PPO、Catmull-Rom、分布式训练）
+        - ✅ 数据收集计划
+        - ✅ 性能目标设定
+        - ✅ 风险评估与控制
+        - ✅ 参考资源汇总
+        - 📚 [guides/knowledge_list.md](guides/knowledge_list.md)（知识点学习路径）
+        - 📚 [guides/recording_guide.md](guides/recording_guide.md)（游戏录制指南）
+        - 📚 [guides/game_selection_guide.md](guides/game_selection_guide.md)（对局筛选指南）
+        - 📚 [guides/labeling_strategy_guide.md](guides/labeling_strategy_guide.md)（标注策略指南）
 
 **核心结论**：
 - ✅ 技术路线验证成功
 - ✅ 数据资源丰富（TLoL高质量数据集）
 - ✅ 硬件配置足够（RTX5060 8GB）
 - ⚠️ 需要大规模数据训练
+
+---
+
+### 阶段2.6：录制和数据标注计划（2026-01-22）
+
+**策略核心**：
+- [x] 录制策略：全部录制（100%收录），训练时智能筛选
+- [x] 筛选标准：KDA客观 + 主观判断，最大化数据价值
+- [x] 目标局数：60-80局（约8-12周）
+- [x] 英雄覆盖：7-9个常用英雄（随机遇到）
+
+**数据策略详情**：
+- [x] 胜局：全部收录（约44%）
+- [x] 败局：根据KDA筛选
+  - KDA ≥ 1.0：高价值，完整标注
+  - 0.5 ≤ KDA < 1.0：中价值，正常标注
+  - KDA < 0.5：低价值，跳过不标注
+- [x] 主观判断：补充KDA不足，保留"打得好"的败局
+
+**DQN训练理解**：
+- [x] 败局价值：失败时刻是AI需要学习的"反面教材"
+- [x] 奖励机制：自动惩罚败局中的错误行为
+- [x] 不需要手动删除败局：DQN会从负样本学习
+
+**预期成果**：
+- [x] V1模型：支持7-9个英雄，人机胜率40-50%
+- [x] 训练时间：8-12周（每周5-10小时投入）
+
+**详细说明**：
+- [x] 录制流程：[录制指南](guides/recording_guide.md)
+- [x] 筛选标准：[对局筛选指南](guides/game_selection_guide.md)
+- [x] 标注策略：[标注策略指南](guides/labeling_strategy_guide.md)
 
 ---
 
