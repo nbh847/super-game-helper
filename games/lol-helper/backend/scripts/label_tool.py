@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import cv2
+import hashlib
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -47,15 +48,18 @@ class LabelConfig:
     FRAMES_DIR = 'frames'
     LABELS_FILE = 'labels.json'
     PROGRESS_FILE = 'progress.json'
+    VIDEO_STATUS_FILE = DATA_DIR / 'video_status.json'
+    STRATEGY_VERSION = "v1.0"  # 标注策略版本
 
 
 class FrameExtractor:
     """录像帧提取器"""
     
-    def __init__(self, video_path, hero_name):
+    def __init__(self, video_path, hero_name, video_manager=None):
         self.video_path = Path(video_path)
         self.hero_name = hero_name
         self.output_dir = LabelConfig.DATA_DIR / hero_name / LabelConfig.FRAMES_DIR
+        self.video_manager = video_manager
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -111,16 +115,21 @@ class FrameExtractor:
         
         logger.info(f"成功提取 {len(frame_paths)} 帧")
         
+        if self.video_manager:
+            video_hash = self.video_manager.register_video(self.video_path, self.hero_name)
+            self.video_manager.update_video_status(video_hash, 'labeling', total_frames=len(frame_paths))
+        
         return frame_paths
     
     @staticmethod
-    def extract_from_directory(video_dir, hero_name):
+    def extract_from_directory(video_dir, hero_name, video_manager=None):
         """
         从目录提取所有视频的帧
         
         Args:
             video_dir: 视频目录
             hero_name: 英雄名称
+            video_manager: 视频状态管理器
         
         Returns:
             all_frame_paths: 所有帧路径列表
@@ -130,18 +139,252 @@ class FrameExtractor:
         
         video_files = list(video_dir.glob("*.mp4")) + \
                       list(video_dir.glob("*.avi")) + \
-                      list(video_dir.glob("*.mkv"))
+                      list(video_dir.glob("*.mkv")) + \
+                      list(video_dir.glob("*.webm"))
         
         for i, video_file in enumerate(video_files):
             logger.info(f"处理视频 {i+1}/{len(video_files)}: {video_file}")
             
-            extractor = FrameExtractor(video_file, hero_name)
+            extractor = FrameExtractor(video_file, hero_name, video_manager)
             frame_paths = extractor.extract_frames()
             all_frame_paths.extend(frame_paths)
         
         logger.info(f"总共提取 {len(all_frame_paths)} 帧")
         
         return all_frame_paths
+
+
+class VideoStatusManager:
+    """视频标注状态管理器"""
+    
+    def __init__(self):
+        self.status_file = LabelConfig.VIDEO_STATUS_FILE
+        self.status_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        self.videos = {}
+        self._load_status()
+    
+    def _load_status(self):
+        """加载视频状态"""
+        if self.status_file.exists():
+            with open(self.status_file, 'r', encoding='utf-8') as f:
+                self.videos = json.load(f)
+            logger.info(f"加载视频状态: {len(self.videos)} 个视频")
+    
+    def save_status(self):
+        """保存视频状态"""
+        with open(self.status_file, 'w', encoding='utf-8') as f:
+            json.dump(self.videos, f, ensure_ascii=False, indent=2)
+        logger.info("视频状态已保存")
+    
+    def _get_video_key(self, video_path):
+        """获取视频的唯一标识（文件名）"""
+        video_path = Path(video_path)
+        return video_path.name
+    
+    def register_video(self, video_path, hero_name):
+        """注册视频并返回视频ID"""
+        video_key = self._get_video_key(video_path)
+        
+        if video_key not in self.videos:
+            self.videos[video_key] = {
+                'video_path': str(video_path),
+                'hero_name': hero_name,
+                'status': 'pending',
+                'total_frames': 0,
+                'labeled_frames': 0,
+                'strategy_version': LabelConfig.STRATEGY_VERSION,
+                'history': [],
+                'created_at': datetime.now().isoformat(),
+                'completed_at': None
+            }
+            self.save_status()
+            logger.info(f"注册新视频: {video_key}")
+        else:
+            current_version = self.videos[video_key].get('strategy_version', 'unknown')
+            if current_version != LabelConfig.STRATEGY_VERSION:
+                logger.info(f"视频 {video_key} 策略版本已更新: {current_version} -> {LabelConfig.STRATEGY_VERSION}")
+        
+        return video_key
+    
+    def update_video_status(self, video_key, status, total_frames=None, labeled_frames=None):
+        """更新视频状态"""
+        if video_key in self.videos:
+            old_status = self.videos[video_key]['status']
+            self.videos[video_key]['status'] = status
+            
+            if total_frames is not None:
+                self.videos[video_key]['total_frames'] = total_frames
+            
+            if labeled_frames is not None:
+                self.videos[video_key]['labeled_frames'] = labeled_frames
+            
+            if status == 'completed' and old_status != 'completed':
+                self.videos[video_key]['completed_at'] = datetime.now().isoformat()
+                self.videos[video_key]['strategy_version'] = LabelConfig.STRATEGY_VERSION
+                self._add_to_history(video_key, status)
+            
+            self.save_status()
+    
+    def _add_to_history(self, video_key, status):
+        """添加到历史记录"""
+        if video_key in self.videos:
+            history_entry = {
+                'status': status,
+                'strategy_version': LabelConfig.STRATEGY_VERSION,
+                'labeled_frames': self.videos[video_key]['labeled_frames'],
+                'total_frames': self.videos[video_key]['total_frames'],
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if 'history' not in self.videos[video_key]:
+                self.videos[video_key]['history'] = []
+            
+            self.videos[video_key]['history'].append(history_entry)
+    
+    def backup_labels(self, video_key, hero_name):
+        """备份当前标注数据"""
+        if video_key not in self.videos:
+            return False
+        
+        video_info = self.videos[video_key]
+        if video_info['status'] != 'completed':
+            return False
+        
+        labels_dir = LabelConfig.DATA_DIR / hero_name
+        labels_file = labels_dir / LabelConfig.LABELS_FILE
+        
+        if not labels_file.exists():
+            return False
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = labels_dir / f"labels_backup_{timestamp}.json"
+        
+        import shutil
+        shutil.copy2(labels_file, backup_file)
+        
+        logger.info(f"标注数据已备份: {backup_file}")
+        return True
+    
+    def get_video_status(self, video_path):
+        """获取视频状态"""
+        video_key = self._get_video_key(video_path)
+        if video_key in self.videos:
+            return self.videos[video_key]
+        return None
+    
+    def is_video_completed(self, video_path):
+        """检查视频是否已标注完成"""
+        status = self.get_video_status(video_path)
+        return status and status['status'] == 'completed'
+    
+    def needs_relabel(self, video_path):
+        """检查是否需要重新标注"""
+        status = self.get_video_status(video_path)
+        if not status:
+            return False
+        
+        current_version = status.get('strategy_version', 'unknown')
+        return current_version != LabelConfig.STRATEGY_VERSION
+    
+    def list_videos(self, hero_name=None, status=None):
+        """列出视频"""
+        videos = []
+        
+        for video_key, info in self.videos.items():
+            if hero_name and info['hero_name'] != hero_name:
+                continue
+            
+            if status and info['status'] != status:
+                continue
+            
+            current_version = info.get('strategy_version', 'unknown')
+            needs_relabel = current_version != LabelConfig.STRATEGY_VERSION
+            
+            videos.append({
+                'key': video_key,
+                'path': info['video_path'],
+                'hero': info['hero_name'],
+                'status': info['status'],
+                'total': info['total_frames'],
+                'labeled': info['labeled_frames'],
+                'version': current_version,
+                'needs_relabel': needs_relabel,
+                'completed_at': info.get('completed_at', None),
+                'history': info.get('history', [])
+            })
+        
+        return sorted(videos, key=lambda x: x['completed_at'] or '', reverse=True)
+    
+    def print_status(self):
+        """打印视频状态"""
+        videos = self.list_videos()
+        
+        if not videos:
+            print("暂无视频记录")
+            return
+        
+        print("\n" + "="*80)
+        print(f"视频标注状态 (当前策略版本: {LabelConfig.STRATEGY_VERSION})")
+        print("="*80)
+        
+        for v in videos:
+            status_icon = {
+                'pending': '⏸️',
+                'labeling': '🏷️',
+                'completed': '✅'
+            }.get(v['status'], '❓')
+            
+            progress = f"{v['labeled']}/{v['total']}" if v['total'] > 0 else "0/0"
+            percent = int(v['labeled'] / v['total'] * 100) if v['total'] > 0 else 0
+            
+            version_info = f" [策略: {v['version']}"
+            if v['needs_relabel']:
+                version_info += f" ⚠️需要重新标注]"
+            else:
+                version_info += "]"
+            
+            print(f"{status_icon} {v['key']} ({v['hero']}){version_info}")
+            print(f"   状态: {v['status']} | 进度: {progress} ({percent}%)")
+            if v['completed_at']:
+                print(f"   完成时间: {v['completed_at']}")
+            
+            if len(v['history']) > 1:
+                print(f"   标注历史: {len(v['history'])} 次")
+            
+            print()
+    
+    def print_history(self, video_path=None, hero_name=None):
+        """打印标注历史"""
+        videos = self.list_videos(hero_name)
+        
+        if video_path:
+            video_key = self._get_video_key(video_path)
+            videos = [v for v in videos if v['key'] == video_key]
+        
+        if not videos:
+            print("未找到视频记录")
+            return
+        
+        for v in videos:
+            print("\n" + "="*80)
+            print(f"标注历史: {v['key']}")
+            print("="*80)
+            
+            if not v['history']:
+                print("暂无标注历史")
+                continue
+            
+            for i, entry in enumerate(v['history'], 1):
+                print(f"\n{i}. 策略版本: {entry.get('strategy_version', 'unknown')}")
+                print(f"   状态: {entry['status']}")
+                print(f"   进度: {entry['labeled_frames']}/{entry['total_frames']}")
+                print(f"   时间: {entry['timestamp']}")
+    
+    def set_strategy_version(self, version):
+        """更新策略版本"""
+        LabelConfig.STRATEGY_VERSION = version
+        logger.info(f"标注策略版本已更新为: {version}")
 
 
 class AutoLabeler:
@@ -233,11 +476,13 @@ class AutoLabeler:
 class LabelManager:
     """标签数据管理器"""
     
-    def __init__(self, hero_name):
+    def __init__(self, hero_name, video_manager=None, video_key=None):
         self.hero_name = hero_name
         self.labels_dir = LabelConfig.DATA_DIR / hero_name
         self.labels_file = self.labels_dir / LabelConfig.LABELS_FILE
         self.progress_file = self.labels_dir / LabelConfig.PROGRESS_FILE
+        self.video_manager = video_manager
+        self.video_key = video_key
         
         self.labels = {}
         self.progress = {
@@ -271,6 +516,16 @@ class LabelManager:
         with open(self.progress_file, 'w', encoding='utf-8') as f:
             json.dump(self.progress, f, ensure_ascii=False, indent=2)
         
+        if self.video_manager and self.video_key:
+            total = self.progress['total_frames']
+            labeled = len(self.labels)
+            
+            if total > 0 and labeled >= total:
+                self.video_manager.update_video_status(self.video_key, 'completed', labeled_frames=labeled)
+                logger.info(f"视频标注完成: {labeled}/{total}")
+            else:
+                self.video_manager.update_video_status(self.video_key, 'labeling', labeled_frames=labeled)
+        
         logger.info("数据已保存")
     
     def set_label(self, frame_name, label):
@@ -295,13 +550,15 @@ class LabelManager:
 class LabelToolGUI:
     """标注工具GUI"""
     
-    def __init__(self, root, hero_name, frame_paths):
+    def __init__(self, root, hero_name, frame_paths, video_manager=None, video_hash=None):
         self.root = root
         self.hero_name = hero_name
         self.frame_paths = frame_paths
         self.current_index = 0
+        self.video_manager = video_manager
+        self.video_hash = video_hash
         
-        self.label_manager = LabelManager(hero_name)
+        self.label_manager = LabelManager(hero_name, video_manager, video_hash)
         self.auto_labeler = AutoLabeler()
         
         self.current_image = None
@@ -483,10 +740,18 @@ def main():
     parser.add_argument('--hero', type=str, required=True, help='英雄名称')
     parser.add_argument('--video', type=str, help='视频文件路径或目录')
     parser.add_argument('--frames-dir', type=str, help='已提取帧的目录')
+    parser.add_argument('--status', action='store_true', help='显示视频标注状态')
     
     args = parser.parse_args()
     
+    video_manager = VideoStatusManager()
+    
+    if args.status:
+        video_manager.print_status()
+        return
+    
     frame_paths = []
+    video_key = None
     
     if args.frames_dir:
         # 从已有帧目录加载
@@ -499,10 +764,24 @@ def main():
         video_path = Path(args.video)
         
         if video_path.is_dir():
-            frame_paths = FrameExtractor.extract_from_directory(video_path, args.hero)
+            frame_paths = FrameExtractor.extract_from_directory(video_path, args.hero, video_manager)
         else:
-            extractor = FrameExtractor(video_path, args.hero)
+            # 检查视频是否已完成
+            if video_manager.is_video_completed(video_path):
+                print(f"\n⚠️ 视频 {video_path.name} 已标注完成！")
+                status = video_manager.get_video_status(video_path)
+                if status:
+                    print(f"完成时间: {status.get('completed_at', '未知')}")
+                    print(f"标注进度: {status.get('labeled_frames', 0)}/{status.get('total_frames', 0)}")
+                
+                response = input("\n是否继续重新标注? (y/N): ").strip().lower()
+                if response != 'y':
+                    print("已取消")
+                    return
+            
+            extractor = FrameExtractor(video_path, args.hero, video_manager)
             frame_paths = extractor.extract_frames()
+            video_key = video_manager._get_video_key(video_path)
     
     else:
         # 默认从数据目录加载
@@ -520,7 +799,7 @@ def main():
     
     # 创建GUI
     root = tk.Tk()
-    app = LabelToolGUI(root, args.hero, frame_paths)
+    app = LabelToolGUI(root, args.hero, frame_paths, video_manager, video_key)
     root.mainloop()
 
 
