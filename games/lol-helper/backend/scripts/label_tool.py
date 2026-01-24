@@ -818,11 +818,16 @@ class LabelToolGUI:
         """保存数据"""
         self.label_manager.save_data()
         messagebox.showinfo("保存", "数据已保存!")
-    
+
     def exit_tool(self):
         """退出工具"""
-        if messagebox.askyesno("退出", "确定要退出吗?"):
+        result = messagebox.askyesnocancel("退出", "确定要退出吗?", icon='question')
+        if result is None:  # 取消
+            return
+        elif result:  # 是：保存并退出
             self.label_manager.save_data()
+            self.root.destroy()
+        else:  # 否：不保存直接退出
             self.root.destroy()
 
 
