@@ -560,11 +560,16 @@ class LabelToolGUI:
         
         self.label_manager = LabelManager(hero_name, video_manager, video_hash)
         self.auto_labeler = AutoLabeler()
-        
+
         self.current_image = None
         self.original_image = None
         self.predicted_label = None
-        
+
+        # 防抖动相关
+        self.last_window_width = 0
+        self.last_window_height = 0
+        self.resize_timer = None
+
         self.setup_ui()
         self.load_frame(0)
     
@@ -627,19 +632,19 @@ class LabelToolGUI:
         hint_label = ttk.Label(hint_frame, text=hint_text, font=('Arial', 10))
         hint_label.pack(side=tk.LEFT)
 
-        # 绑定快捷键
-        self.root.bind('1', lambda e: self.set_label('1'))
-        self.root.bind('2', lambda e: self.set_label('2'))
-        self.root.bind('3', lambda e: self.set_label('3'))
-        self.root.bind('4', lambda e: self.set_label('4'))
-        self.root.bind('5', lambda e: self.set_label('5'))
+        # 绑定快捷键（使用全局绑定确保捕获）
+        self.root.bind_all('1', lambda e: self.set_label('1'))
+        self.root.bind_all('2', lambda e: self.set_label('2'))
+        self.root.bind_all('3', lambda e: self.set_label('3'))
+        self.root.bind_all('4', lambda e: self.set_label('4'))
+        self.root.bind_all('5', lambda e: self.set_label('5'))
 
-        self.root.bind('Left', lambda e: self.previous_frame())
-        self.root.bind('Right', lambda e: self.next_frame())
-        self.root.bind('s', lambda e: self.save_data())
-        self.root.bind('S', lambda e: self.save_data())
-        self.root.bind('q', lambda e: self.exit_tool())
-        self.root.bind('Q', lambda e: self.exit_tool())
+        self.root.bind_all('Left', lambda e: self.previous_frame())
+        self.root.bind_all('Right', lambda e: self.next_frame())
+        self.root.bind_all('s', lambda e: self.save_data())
+        self.root.bind_all('S', lambda e: self.save_data())
+        self.root.bind_all('q', lambda e: self.exit_tool())
+        self.root.bind_all('Q', lambda e: self.exit_tool())
 
         # 绑定窗口大小变化事件
         self.root.bind('<Configure>', self.on_window_resize)
@@ -737,7 +742,20 @@ class LabelToolGUI:
         """窗口大小改变时重新调整图片"""
         # 只在主窗口大小改变时重新调整图片
         if event.widget == self.root and hasattr(self, 'original_image'):
-            self._resize_and_display_image()
+            current_width = event.width
+            current_height = event.height
+
+            # 检查窗口大小是否真的改变了
+            if abs(current_width - self.last_window_width) > 10 or abs(current_height - self.last_window_height) > 10:
+                self.last_window_width = current_width
+                self.last_window_height = current_height
+
+                # 取消之前的定时器
+                if self.resize_timer:
+                    self.root.after_cancel(self.resize_timer)
+
+                # 设置新的定时器（防抖动）
+                self.resize_timer = self.root.after(200, self._resize_and_display_image)
     
     def set_label(self, label_id):
         """设置标签"""
