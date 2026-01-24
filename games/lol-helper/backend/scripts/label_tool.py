@@ -659,11 +659,11 @@ class LabelToolGUI:
         button_center = ttk.Frame(button_frame)
         button_center.pack()
 
-        ttk.Button(button_center, text="上一帧", command=self.previous_frame).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_center, text="下一帧", command=self.next_frame).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_center, text="保存", command=self.save_data).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_center, text="重新标注", command=self.reset_annotation).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_center, text="退出", command=self.exit_tool).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="上一帧", command=self.previous_frame, takefocus=False).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="下一帧", command=self.next_frame, takefocus=False).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="保存", command=self.save_data, takefocus=False).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="重新标注", command=self.reset_annotation, takefocus=False).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="退出", command=self.exit_tool, takefocus=False).pack(side=tk.LEFT, padx=5)
     
     def load_frame(self, index, force_resize=False):
         """加载帧"""
