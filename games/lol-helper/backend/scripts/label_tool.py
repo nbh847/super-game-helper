@@ -662,21 +662,26 @@ class LabelToolGUI:
         ttk.Button(button_center, text="保存", command=self.save_data).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_center, text="退出", command=self.exit_tool).pack(side=tk.LEFT, padx=5)
     
-    def load_frame(self, index):
+    def load_frame(self, index, force_resize=False):
         """加载帧"""
         if 0 <= index < len(self.frame_paths):
             self.current_index = index
             frame_path = self.frame_paths[index]
             frame_name = Path(frame_path).name
-            
+
             # 加载原始图片
             image = Image.open(frame_path)
             self.original_image = image
-            
-            # 等待窗口更新后再调整图片大小
-            self.root.update_idletasks()
-            self._resize_and_display_image()
-            
+
+            # 只在第一次或强制调整时调整图片
+            if not hasattr(self, '_first_frame_loaded') or force_resize:
+                self.root.update_idletasks()
+                self._resize_and_display_image()
+                self._first_frame_loaded = True
+            else:
+                # 直接显示缩放后的图片（不需要重新调整）
+                self._display_resized_image()
+
             # 获取已有标签
             existing_label = self.label_manager.get_label(frame_name)
 
@@ -692,47 +697,71 @@ class LabelToolGUI:
                     text="当前标签: 未标注",
                     foreground='black'
                 )
-            
+
             # 自动推断标签
             predicted, confidence = self.auto_labeler.predict_label(frame_path)
             self.predicted_label = predicted
             self.predicted_label_label.configure(
                 text=f"AI建议: {predicted} (置信度: {confidence:.2f})"
             )
-            
+
             # 更新信息
             progress = self.label_manager.get_progress()
             self.info_label.configure(
                 text=f"帧: {index+1}/{len(self.frame_paths)} | "
                      f"已标注: {progress['labeled_frames']}/{progress['total_frames']}"
             )
-            
+
             self.label_manager.update_progress(index, len(self.frame_paths))
+
+    def _display_resized_image(self):
+        """显示已缩放的图片（不重新调整大小）"""
+        if not hasattr(self, 'original_image') or self.original_image is None:
+            return
+
+        # 使用上次的缩放比例重新调整
+        if hasattr(self, '_resize_ratio'):
+            img_width, img_height = self.original_image.size
+            ratio = self._resize_ratio
+
+            new_width = int(img_width * ratio)
+            new_height = int(img_height * ratio)
+
+            # 缩放图片
+            resized_image = self.original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # 显示图片
+            photo = ImageTk.PhotoImage(resized_image)
+            self.image_label.configure(image=photo)
+            self.image_label.image = photo
     
     def _resize_and_display_image(self):
         """根据窗口大小调整并显示图片"""
         if not hasattr(self, 'original_image') or self.original_image is None:
             return
-        
+
         # 获取图片显示区域的大小
         self.image_label.update_idletasks()
         label_width = self.image_label.winfo_width()
         label_height = self.image_label.winfo_height()
-        
+
         # 如果窗口还未显示，使用默认大小
         if label_width <= 1 or label_height <= 1:
             label_width, label_height = LabelConfig.DISPLAY_SIZE
-        
+
         # 计算保持宽高比的缩放
         img_width, img_height = self.original_image.size
         ratio = min(label_width / img_width, label_height / img_height)
-        
+
+        # 保存缩放比例供后续使用
+        self._resize_ratio = ratio
+
         new_width = int(img_width * ratio)
         new_height = int(img_height * ratio)
-        
+
         # 缩放图片
         resized_image = self.original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
+
         # 显示图片
         photo = ImageTk.PhotoImage(resized_image)
         self.image_label.configure(image=photo)
@@ -754,8 +783,8 @@ class LabelToolGUI:
                 if self.resize_timer:
                     self.root.after_cancel(self.resize_timer)
 
-                # 设置新的定时器（防抖动）
-                self.resize_timer = self.root.after(200, self._resize_and_display_image)
+                # 设置新的定时器（防抖动）并强制重新调整
+                self.resize_timer = self.root.after(200, lambda: self.load_frame(self.current_index, force_resize=True))
     
     def set_label(self, label_id):
         """设置标签"""
