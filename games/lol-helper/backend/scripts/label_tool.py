@@ -40,7 +40,7 @@ class LabelConfig:
     LABEL_TO_ID = {v['name']: k for k, v in LABELS.items()}
     ID_TO_LABEL = LABELS
     
-    DISPLAY_SIZE = (800, 600)
+    DISPLAY_SIZE = (1200, 900)
     FRAME_INTERVAL = 1  # 秒
     MAX_FRAMES = 200
     
@@ -562,6 +562,7 @@ class LabelToolGUI:
         self.auto_labeler = AutoLabeler()
         
         self.current_image = None
+        self.original_image = None
         self.predicted_label = None
         
         self.setup_ui()
@@ -636,6 +637,9 @@ class LabelToolGUI:
         self.root.bind('q', lambda e: self.exit_tool())
         self.root.bind('Q', lambda e: self.exit_tool())
         
+        # 绑定窗口大小变化事件
+        self.root.bind('<Configure>', self.on_window_resize)
+        
         # 按钮栏
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
@@ -652,13 +656,13 @@ class LabelToolGUI:
             frame_path = self.frame_paths[index]
             frame_name = Path(frame_path).name
             
-            # 加载图片
+            # 加载原始图片
             image = Image.open(frame_path)
-            image.thumbnail(LabelConfig.DISPLAY_SIZE)
-            self.current_image = image
-            photo = ImageTk.PhotoImage(image)
-            self.image_label.configure(image=photo)
-            self.image_label.image = photo
+            self.original_image = image
+            
+            # 等待窗口更新后再调整图片大小
+            self.root.update_idletasks()
+            self._resize_and_display_image()
             
             # 获取已有标签
             existing_label = self.label_manager.get_label(frame_name)
@@ -691,6 +695,41 @@ class LabelToolGUI:
             )
             
             self.label_manager.update_progress(index, len(self.frame_paths))
+    
+    def _resize_and_display_image(self):
+        """根据窗口大小调整并显示图片"""
+        if not hasattr(self, 'original_image') or self.original_image is None:
+            return
+        
+        # 获取图片显示区域的大小
+        self.image_label.update_idletasks()
+        label_width = self.image_label.winfo_width()
+        label_height = self.image_label.winfo_height()
+        
+        # 如果窗口还未显示，使用默认大小
+        if label_width <= 1 or label_height <= 1:
+            label_width, label_height = LabelConfig.DISPLAY_SIZE
+        
+        # 计算保持宽高比的缩放
+        img_width, img_height = self.original_image.size
+        ratio = min(label_width / img_width, label_height / img_height)
+        
+        new_width = int(img_width * ratio)
+        new_height = int(img_height * ratio)
+        
+        # 缩放图片
+        resized_image = self.original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 显示图片
+        photo = ImageTk.PhotoImage(resized_image)
+        self.image_label.configure(image=photo)
+        self.image_label.image = photo
+    
+    def on_window_resize(self, event):
+        """窗口大小改变时重新调整图片"""
+        # 只在主窗口大小改变时重新调整图片
+        if event.widget == self.root and hasattr(self, 'original_image'):
+            self._resize_and_display_image()
     
     def set_label(self, label_id):
         """设置标签"""
