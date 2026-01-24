@@ -572,36 +572,40 @@ class LabelToolGUI:
         """设置UI"""
         self.root.title(f"英雄状态标注工具 - {self.hero_name}")
         self.root.geometry("1000x800")
-        
-        # 主框架
+
+        # 主框架 - 垂直布局
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # 顶部信息栏
         info_frame = ttk.Frame(main_frame)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        
+
         self.info_label = ttk.Label(info_frame, text="", font=('Arial', 10))
         self.info_label.pack(side=tk.LEFT)
-        
+
+        # 中间区域 - 垂直布局
+        middle_frame = ttk.Frame(main_frame)
+        middle_frame.pack(fill=tk.BOTH, expand=True)
+
         # 图片显示区域
-        image_frame = ttk.Frame(main_frame)
+        image_frame = ttk.Frame(middle_frame)
         image_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
+
         self.image_label = ttk.Label(image_frame)
         self.image_label.pack(fill=tk.BOTH, expand=True)
-        
+
         # 当前标签显示
-        label_frame = ttk.Frame(main_frame)
+        label_frame = ttk.Frame(middle_frame)
         label_frame.pack(fill=tk.X, pady=(0, 10))
-        
+
         self.current_label_label = ttk.Label(
-            label_frame, 
-            text="当前标签: 未标注", 
+            label_frame,
+            text="当前标签: 未标注",
             font=('Arial', 14, 'bold')
         )
         self.current_label_label.pack()
-        
+
         self.predicted_label_label = ttk.Label(
             label_frame,
             text="",
@@ -609,45 +613,49 @@ class LabelToolGUI:
             foreground='gray'
         )
         self.predicted_label_label.pack()
-        
+
         # 快捷键提示
-        hint_frame = ttk.Frame(main_frame)
+        hint_frame = ttk.Frame(middle_frame)
         hint_frame.pack(fill=tk.X)
-        
+
         hint_text = "快捷键: "
         for key, label_info in LabelConfig.LABELS.items():
             hint_text += f"[{key}]{label_info['name']} "
-        
+
         hint_text += " | [←]上一帧 [→]下一帧 [S]保存 [Q]退出"
-        
+
         hint_label = ttk.Label(hint_frame, text=hint_text, font=('Arial', 10))
         hint_label.pack(side=tk.LEFT)
-        
+
         # 绑定快捷键
         self.root.bind('1', lambda e: self.set_label('1'))
         self.root.bind('2', lambda e: self.set_label('2'))
         self.root.bind('3', lambda e: self.set_label('3'))
         self.root.bind('4', lambda e: self.set_label('4'))
         self.root.bind('5', lambda e: self.set_label('5'))
-        
+
         self.root.bind('Left', lambda e: self.previous_frame())
         self.root.bind('Right', lambda e: self.next_frame())
         self.root.bind('s', lambda e: self.save_data())
         self.root.bind('S', lambda e: self.save_data())
         self.root.bind('q', lambda e: self.exit_tool())
         self.root.bind('Q', lambda e: self.exit_tool())
-        
+
         # 绑定窗口大小变化事件
         self.root.bind('<Configure>', self.on_window_resize)
-        
-        # 按钮栏
+
+        # 底部按钮栏 - 固定在底部
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        ttk.Button(button_frame, text="上一帧", command=self.previous_frame).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="下一帧", command=self.next_frame).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="保存", command=self.save_data).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="退出", command=self.exit_tool).pack(side=tk.RIGHT, padx=5)
+
+        # 创建一个居中容器
+        button_center = ttk.Frame(button_frame)
+        button_center.pack()
+
+        ttk.Button(button_center, text="上一帧", command=self.previous_frame).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="下一帧", command=self.next_frame).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="保存", command=self.save_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="退出", command=self.exit_tool).pack(side=tk.LEFT, padx=5)
     
     def load_frame(self, index):
         """加载帧"""
