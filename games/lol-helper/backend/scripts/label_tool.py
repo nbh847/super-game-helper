@@ -666,10 +666,10 @@ class LabelToolGUI:
             
             # 获取已有标签
             existing_label = self.label_manager.get_label(frame_name)
-            
+
             if existing_label:
-                label_info = LabelConfig.LABEL_TO_ID[existing_label]
-                color = label_info['color']
+                label_id = LabelConfig.LABEL_TO_ID[existing_label]
+                color = LabelConfig.LABELS[label_id]['color']
                 self.current_label_label.configure(
                     text=f"当前标签: {existing_label}",
                     foreground=color
