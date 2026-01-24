@@ -627,7 +627,7 @@ class LabelToolGUI:
         for key, label_info in LabelConfig.LABELS.items():
             hint_text += f"[{key}]{label_info['name']} "
 
-        hint_text += " | [←]上一帧 [→]下一帧 [S]保存 [Q]退出"
+        hint_text += " | [←]上一帧 [→]下一帧 [S]保存 [R]重新标注 [Q]退出"
 
         hint_label = ttk.Label(hint_frame, text=hint_text, font=('Arial', 10))
         hint_label.pack(side=tk.LEFT)
@@ -643,6 +643,8 @@ class LabelToolGUI:
         self.root.bind_all('Right', lambda e: self.next_frame())
         self.root.bind_all('s', lambda e: self.save_data())
         self.root.bind_all('S', lambda e: self.save_data())
+        self.root.bind_all('r', lambda e: self.reset_annotation())
+        self.root.bind_all('R', lambda e: self.reset_annotation())
         self.root.bind_all('q', lambda e: self.exit_tool())
         self.root.bind_all('Q', lambda e: self.exit_tool())
 
@@ -660,6 +662,7 @@ class LabelToolGUI:
         ttk.Button(button_center, text="上一帧", command=self.previous_frame).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_center, text="下一帧", command=self.next_frame).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_center, text="保存", command=self.save_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_center, text="重新标注", command=self.reset_annotation).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_center, text="退出", command=self.exit_tool).pack(side=tk.LEFT, padx=5)
     
     def load_frame(self, index, force_resize=False):
@@ -829,6 +832,33 @@ class LabelToolGUI:
             self.root.destroy()
         else:  # 否：不保存直接退出
             self.root.destroy()
+
+    def reset_annotation(self):
+        """重新标注：清空所有标注数据，重新开始"""
+        if not self.label_manager.labels:
+            messagebox.showinfo("提示", "暂无标注数据，无需清空")
+            return
+
+        labeled_count = len(self.label_manager.labels)
+        confirm = messagebox.askyesno(
+            "确认重新标注",
+            f"确定要清空所有标注数据吗？\n\n当前已标注：{labeled_count} 帧\n\n⚠️ 此操作不可恢复！",
+            icon='warning'
+        )
+
+        if confirm:
+            # 清空标注数据
+            self.label_manager.labels = {}
+            self.label_manager.progress['labeled_frames'] = 0
+
+            # 保存空数据（覆盖原有标注）
+            self.label_manager.save_data()
+
+            # 重新加载第一帧
+            self.load_frame(0)
+
+            messagebox.showinfo("完成", "标注数据已清空，重新开始标注！")
+            logger.info(f"重新标注：已清空 {labeled_count} 帧标注数据")
 
 
 def main():
