@@ -41,8 +41,8 @@ class LabelConfig:
     ID_TO_LABEL = LABELS
     
     DISPLAY_SIZE = (1200, 900)
-    FRAME_INTERVAL = 1  # 秒
-    MAX_FRAMES = 200
+    FRAME_INTERVAL = 3  # 秒（每3秒1帧）
+    MAX_FRAMES = 300  # 覆盖15分钟（15分×20帧/分=300帧）
     
     DATA_DIR = DATA_DIR / 'hero_states'
     FRAMES_DIR = 'frames'
