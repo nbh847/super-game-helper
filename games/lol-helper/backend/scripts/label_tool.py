@@ -531,7 +531,7 @@ class LabelManager:
     def set_label(self, frame_name, label):
         """设置帧标签"""
         self.labels[frame_name] = label
-        self.progress['labeled_frames'] = len(set(self.labels.values()))
+        self.progress['labeled_frames'] = len(self.labels)
     
     def get_label(self, frame_name):
         """获取帧标签"""
