@@ -209,9 +209,53 @@ class Trainer:
             torch.save(checkpoint, epoch_path)
             logger.info(f"保存检查点: {epoch_path}")
     
+    def update_training_status(self, val_acc):
+        """更新训练状态到video_status.json"""
+        from datetime import datetime
+        
+        video_status_path = self.config.DATA_DIR / "video_status.json"
+        
+        if not video_status_path.exists():
+            logger.warning(f"video_status.json不存在: {video_status_path}")
+            return
+        
+        # 读取当前状态
+        with open(video_status_path, 'r', encoding='utf-8') as f:
+            video_status = json.load(f)
+        
+        # 获取最佳模型路径（相对于项目根目录）
+        best_model_path = self.config.SAVE_DIR / "best.pth"
+        try:
+            best_model_path = best_model_path.relative_to(PROJECT_ROOT)
+        except ValueError:
+            pass
+        
+        # 更新已训练视频的状态
+        updated_count = 0
+        for video_name, video_info in video_status.items():
+            if video_info['hero_name'] in self.hero_names and video_info.get('status') == 'completed':
+                if not video_info.get('trained', False):
+                    video_info['trained'] = True
+                    video_info['training_info'] = {
+                        'model_path': str(best_model_path),
+                        'training_date': datetime.now().isoformat(),
+                        'val_acc': round(val_acc, 2)
+                    }
+                    updated_count += 1
+        
+        if updated_count > 0:
+            # 保存更新后的状态
+            with open(video_status_path, 'w', encoding='utf-8') as f:
+                json.dump(video_status, f, ensure_ascii=False, indent=2)
+            logger.info(f"更新训练状态: {updated_count}个视频标记为已训练")
+        else:
+            logger.info("没有需要更新训练状态的视频")
+    
     def train(self, train_loader, val_loader, epochs):
         """训练"""
         logger.info("开始训练")
+        
+        final_val_acc = 0.0
         
         for epoch in range(1, epochs + 1):
             logger.info(f"Epoch {epoch}/{epochs}")
@@ -221,6 +265,7 @@ class Trainer:
             
             # 验证
             val_loss, val_acc = self.validate(val_loader, epoch)
+            final_val_acc = val_acc  # 保存最后一个epoch的验证准确率
             
             # 学习率调度
             self.scheduler.step()
@@ -241,6 +286,9 @@ class Trainer:
         
         logger.info(f"训练完成，最佳验证准确率: {self.best_val_acc:.2f}%")
         self.writer.close()
+        
+        # 更新训练状态
+        self.update_training_status(final_val_acc)
 
 
 def main():

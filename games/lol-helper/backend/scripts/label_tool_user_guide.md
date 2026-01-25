@@ -170,7 +170,13 @@ python scripts/label_tool.py --status
     "strategy_version": "v1.0", // 标注策略版本
     "history": [],                 // 标注历史
     "created_at": "2026-01-24T13:11:10",  // 创建时间
-    "completed_at": null          // 完成时间
+    "completed_at": null,          // 完成时间
+    "trained": false,  // 是否已用于训练
+    "training_info": {  // 训练信息（训练后自动添加）
+      "model_path": "backend/ai/models/state_classifier/best.pth",
+      "training_date": "2026-01-25T14:00:00",
+      "val_acc": 72.22
+    }
   }
 }
 ```
@@ -351,6 +357,8 @@ for record in pending_records:
 - **英雄名称**：中文名（如：塞拉斯）
 - **状态跟踪**：pending/labeling/completed
 - **防重复标注**：尝试标注已完成视频时会提示
+- **训练状态**：`trained`字段标识是否已用于训练
+- **训练信息**：`training_info`记录模型路径、训练日期、验证准确率等
 
 ### 游戏资料（record_details.json）
 
