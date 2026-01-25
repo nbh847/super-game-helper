@@ -52,7 +52,56 @@ class HeroStateDataset(Dataset):
         self.target_size = target_size
         self.transform = transform
         
+        # 检查数据结构：新结构（按视频） vs 旧结构（扁平）
+        self.use_new_structure = self._check_data_structure()
+        
         # 加载标签
+        if self.use_new_structure:
+            self._load_labels_new_structure()
+        else:
+            self._load_labels_old_structure()
+        
+        logger.info(f"加载数据集: {self.hero_name}, 有效样本数: {len(self.valid_samples)}, 结构: {'新' if self.use_new_structure else '旧'}")
+    
+    def _check_data_structure(self):
+        """检查数据结构"""
+        # 检查是否有视频目录（新结构）
+        video_dirs = list(self.data_dir.glob("record*.mp4"))
+        if video_dirs:
+            return True
+        
+        # 检查是否有直接的frames目录（旧结构）
+        if (self.data_dir / "frames").exists():
+            return False
+        
+        # 如果都没有，尝试新结构
+        return True
+    
+    def _load_labels_new_structure(self):
+        """加载新结构数据（按视频组织）"""
+        self.valid_samples = []
+        
+        # 遍历所有视频目录
+        for video_dir in sorted(self.data_dir.glob("record*.mp4")):
+            labels_file = video_dir / "labels.json"
+            frames_dir = video_dir / "frames"
+            
+            if not labels_file.exists() or not frames_dir.exists():
+                continue
+            
+            # 加载该视频的标签
+            with open(labels_file, 'r', encoding='utf-8') as f:
+                labels = json.load(f)
+            
+            # 收集有效样本
+            for frame_name, label_name in labels.items():
+                if label_name in self.LABEL_MAP:
+                    frame_path = frames_dir / frame_name
+                    if frame_path.exists():
+                        self.valid_samples.append((str(frame_path), self.LABEL_MAP[label_name]))
+    
+    def _load_labels_old_structure(self):
+        """加载旧结构数据（扁平结构）"""
         self.labels_file = self.data_dir / "labels.json"
         
         if not self.labels_file.exists():
@@ -68,8 +117,6 @@ class HeroStateDataset(Dataset):
                 frame_path = self.data_dir / "frames" / frame_name
                 if frame_path.exists():
                     self.valid_samples.append((str(frame_path), self.LABEL_MAP[label_name]))
-        
-        logger.info(f"加载数据集: {self.hero_name}, 有效样本数: {len(self.valid_samples)}")
     
     def __len__(self):
         return len(self.valid_samples)

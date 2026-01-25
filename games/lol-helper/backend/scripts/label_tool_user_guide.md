@@ -110,9 +110,26 @@ python scripts/label_tool.py --hero Lux --frames-dir data/hero_states/Lux/frames
 标注过程中，数据会自动保存。也可以手动点击"保存"按钮或按`S`键保存。
 
 标注完成后，数据保存在：
-- 帧图片：`data/hero_states/{英雄名称}/frames/`
-- 标签数据：`data/hero_states/{英雄名称}/labels.json`
+- 帧图片：`data/hero_states/{英雄名称}/{视频文件名}/frames/`
+- 标签数据：`data/hero_states/{英雄名称}/{视频文件名}/labels.json`
 - 进度数据：`data/hero_states/{英雄名称}/progress.json`
+
+**数据结构示例：**
+```
+data/hero_states/
+├── 塞拉斯/
+│   ├── record20260123-222005-塞拉斯-win.mp4/
+│   │   ├── frames/
+│   │   │   ├── frame_0000.png
+│   │   │   └── frame_0001.png
+│   │   └── labels.json
+│   └── progress.json
+├── 梅尔/
+│   ├── record20260124-161447.mp4/
+│   │   ├── frames/
+│   │   └── labels.json
+│   └── progress.json
+```
 
 ## 快捷键说明
 
