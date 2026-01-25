@@ -55,11 +55,18 @@ class LabelConfig:
 class FrameExtractor:
     """录像帧提取器"""
     
-    def __init__(self, video_path, hero_name, video_manager=None):
+    def __init__(self, video_path, hero_name, video_manager=None, video_name=None):
         self.video_path = Path(video_path)
         self.hero_name = hero_name
-        self.output_dir = LabelConfig.DATA_DIR / hero_name / LabelConfig.FRAMES_DIR
+        self.video_name = video_name  # 新增：视频文件名
         self.video_manager = video_manager
+        
+        # 确定输出目录（新结构：按视频组织）
+        if self.video_name:
+            self.output_dir = LabelConfig.DATA_DIR / hero_name / self.video_name / LabelConfig.FRAMES_DIR
+        else:
+            # 向后兼容：旧结构
+            self.output_dir = LabelConfig.DATA_DIR / hero_name / LabelConfig.FRAMES_DIR
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -145,7 +152,9 @@ class FrameExtractor:
         for i, video_file in enumerate(video_files):
             logger.info(f"处理视频 {i+1}/{len(video_files)}: {video_file}")
             
-            extractor = FrameExtractor(video_file, hero_name, video_manager)
+            # 传入视频文件名（新结构需要）
+            video_name = video_file.name
+            extractor = FrameExtractor(video_file, hero_name, video_manager, video_name=video_name)
             frame_paths = extractor.extract_frames()
             all_frame_paths.extend(frame_paths)
         
@@ -478,11 +487,25 @@ class LabelManager:
     
     def __init__(self, hero_name, video_manager=None, video_key=None):
         self.hero_name = hero_name
-        self.labels_dir = LabelConfig.DATA_DIR / hero_name
-        self.labels_file = self.labels_dir / LabelConfig.LABELS_FILE
-        self.progress_file = self.labels_dir / LabelConfig.PROGRESS_FILE
         self.video_manager = video_manager
         self.video_key = video_key
+        
+        # 英雄级别目录（用于progress.json）
+        self.hero_dir = LabelConfig.DATA_DIR / hero_name
+        self.hero_dir.mkdir(parents=True, exist_ok=True)
+        self.progress_file = self.hero_dir / LabelConfig.PROGRESS_FILE
+        
+        # 视频级别目录（用于labels.json）
+        if video_key:
+            # 新结构：按视频组织
+            self.labels_dir = self.hero_dir / video_key
+            self.labels_file = self.labels_dir / LabelConfig.LABELS_FILE
+        else:
+            # 向后兼容：旧结构
+            self.labels_dir = self.hero_dir
+            self.labels_file = self.labels_dir / LabelConfig.LABELS_FILE
+        
+        self.labels_dir.mkdir(parents=True, exist_ok=True)
         
         self.labels = {}
         self.progress = {
@@ -908,19 +931,37 @@ def main():
                     print("已取消")
                     return
             
-            extractor = FrameExtractor(video_path, args.hero, video_manager)
+            # 传入视频文件名（新结构需要）
+            video_name = video_manager._get_video_key(video_path)
+            extractor = FrameExtractor(video_path, args.hero, video_manager, video_name=video_name)
             frame_paths = extractor.extract_frames()
-            video_key = video_manager._get_video_key(video_path)
+            video_key = video_name  # 用于LabelManager
     
     else:
-        # 默认从数据目录加载
-        frames_dir = LabelConfig.DATA_DIR / args.hero / LabelConfig.FRAMES_DIR
-        if frames_dir.exists():
-            frame_paths = sorted(list(frames_dir.glob("*.png")))
-            logger.info(f"从默认目录加载 {len(frame_paths)} 帧")
+        # 默认从数据目录加载（支持新结构和旧结构）
+        # 优先尝试新结构（按视频组织）
+        hero_dir = LabelConfig.DATA_DIR / args.hero
+        video_dirs = list(hero_dir.glob("record*.mp4"))
+        
+        if video_dirs:
+            # 新结构：加载该英雄下所有视频的帧
+            frame_paths = []
+            for video_dir in video_dirs:
+                frames_dir = video_dir / LabelConfig.FRAMES_DIR
+                if frames_dir.exists():
+                    video_frames = sorted(list(frames_dir.glob("*.png")))
+                    frame_paths.extend(video_frames)
+                    logger.info(f"从视频加载 {len(video_frames)} 帧: {video_dir.name}")
+            logger.info(f"总共加载 {len(frame_paths)} 帧（新结构）")
         else:
-            logger.error("未指定视频或帧目录，且默认目录不存在")
-            sys.exit(1)
+            # 旧结构：从默认frames目录加载
+            frames_dir = hero_dir / LabelConfig.FRAMES_DIR
+            if frames_dir.exists():
+                frame_paths = sorted(list(frames_dir.glob("*.png")))
+                logger.info(f"从默认目录加载 {len(frame_paths)} 帧（旧结构）")
+            else:
+                logger.error("未指定视频或帧目录，且默认目录不存在")
+                sys.exit(1)
     
     if not frame_paths:
         logger.error("未找到任何帧")
