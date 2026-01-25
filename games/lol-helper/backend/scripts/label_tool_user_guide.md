@@ -190,10 +190,17 @@ python scripts/label_tool.py --status
     "hero_name": "梅尔",  // 中文名
     "hero_type": "法师",      // 英雄类型：法师/战士/刺客/坦克/辅助
     "battle_result": "win",     // 对局结果：win/fail
-    "KDA": "3/5/7"        // KDA数据：击杀/死亡/助攻
+    "KDA": "3/5/7",       // KDA数据：击杀/死亡/助攻
+    "label_status": "pending"  // 标注状态：pending/labeling/completed/skipped
   }
 ]
 ```
+
+**标注状态说明**：
+- `pending` - 待标注
+- `labeling` - 标注进行中
+- `completed` - 标注已完成
+- `skipped` - 已跳过（如低KDA败局等低质量数据）
 
 ---
 
@@ -238,10 +245,12 @@ for record in records:
     hero_type = record['hero_type']
     battle_result = record['battle_result']
     kda = record['KDA']
+    label_status = record.get('label_status', 'pending')
 
     print(f"视频: {file_name}")
     print(f"英雄: {hero_name} ({hero_type})")
     print(f"结果: {battle_result}")
+    print(f"标注状态: {label_status}")
     if kda:
         k, d, a = kda.split('/')
         print(f"KDA: {k}/{d}/{a} ({int(k)+int(d)+int(a)})")
@@ -270,6 +279,24 @@ for record in records:
 - **高KDA败局**：完整标注，学习"正确"状态的重要性
 - **中KDA败局**：可跳过或快速标注
 - **低KDA败局**：建议跳过，只保留高质量数据
+
+#### 使用label_status过滤
+
+根据 `label_status` 字段过滤需要标注的视频：
+
+```python
+import json
+
+# 读取游戏资料
+with open('E:/MyGame/GameVideos/record_details.json', 'r', encoding='utf-8') as f:
+    records = json.load(f)
+
+# 只标注未跳过的视频
+pending_records = [r for r in records if r.get('label_status', 'pending') != 'skipped']
+
+for record in pending_records:
+    print(f"待标注: {record['file_name']} ({record['hero_name']})")
+```
 
 ---
 
