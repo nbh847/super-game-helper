@@ -133,7 +133,7 @@ class StateClassifier(nn.Module):
     状态: 移动、攻击、技能、受伤、死亡
     """
     
-    def __init__(self, input_dim=256, num_classes=5, hidden_dim=128, dropout=0.3):
+    def __init__(self, input_dim=256, num_classes=6, hidden_dim=128, dropout=0.3):
         super(StateClassifier, self).__init__()
         
         self.input_dim = input_dim
@@ -207,7 +207,7 @@ class VisualStateClassifier(nn.Module):
     组合视觉编码器和状态分类器
     """
     
-    def __init__(self, input_channels=3, hidden_dim=256, num_classes=5, dropout=0.3):
+    def __init__(self, input_channels=3, hidden_dim=256, num_classes=6, dropout=0.3):
         super(VisualStateClassifier, self).__init__()
         
         self.encoder = VisualEncoder(input_channels, hidden_dim)
@@ -265,8 +265,8 @@ def test_models():
     
     # 创建模型
     encoder = VisualEncoder(input_channels=3, output_dim=256)
-    classifier = StateClassifier(input_dim=256, num_classes=5)
-    full_model = VisualStateClassifier(input_channels=3, hidden_dim=256, num_classes=5)
+    classifier = StateClassifier(input_dim=256, num_classes=6)
+    full_model = VisualStateClassifier(input_channels=3, hidden_dim=256, num_classes=6)
     
     # 统计参数量
     print(f"VisualEncoder参数量: {count_parameters(encoder):,}")

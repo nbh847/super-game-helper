@@ -31,7 +31,7 @@ class TrainingConfig:
     # 模型配置
     INPUT_CHANNELS = 3
     HIDDEN_DIM = 256
-    NUM_CLASSES = 5
+    NUM_CLASSES = 6
     DROPOUT = 0.3
     
     # 训练配置

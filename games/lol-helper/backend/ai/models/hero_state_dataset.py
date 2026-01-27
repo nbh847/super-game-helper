@@ -34,7 +34,8 @@ class HeroStateDataset(Dataset):
         '攻击': 1,
         '技能': 2,
         '受伤': 3,
-        '死亡': 4
+        '死亡': 4,
+        '买装备': 5
     }
     
     REVERSE_LABEL_MAP = {v: k for k, v in LABEL_MAP.items()}

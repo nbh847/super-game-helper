@@ -35,6 +35,7 @@ class LabelConfig:
         '3': {'name': '技能', 'color': '#0000FF', 'key': '3'},
         '4': {'name': '受伤', 'color': '#FFFF00', 'key': '4'},
         '5': {'name': '死亡', 'color': '#808080', 'key': '5'},
+        '6': {'name': '买装备', 'color': '#FFA500', 'key': '6'},
     }
     
     LABEL_TO_ID = {v['name']: k for k, v in LABELS.items()}
@@ -49,7 +50,7 @@ class LabelConfig:
     LABELS_FILE = 'labels.json'
     PROGRESS_FILE = 'progress.json'
     VIDEO_STATUS_FILE = DATA_DIR / 'video_status.json'
-    STRATEGY_VERSION = "v1.0"  # 标注策略版本
+    STRATEGY_VERSION = "v2.0"  # 标注策略版本
 
 
 class FrameExtractor:
@@ -661,6 +662,7 @@ class LabelToolGUI:
         self.root.bind_all('3', lambda e: self.set_label('3'))
         self.root.bind_all('4', lambda e: self.set_label('4'))
         self.root.bind_all('5', lambda e: self.set_label('5'))
+        self.root.bind_all('6', lambda e: self.set_label('6'))
 
         self.root.bind_all('Left', lambda e: self.previous_frame())
         self.root.bind_all('Right', lambda e: self.next_frame())
